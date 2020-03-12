@@ -584,6 +584,28 @@ func TestService_UpdateCampaignWithNewCampaignPlanID(t *testing.T) {
 			},
 			wantUnmodified: repoNames{"repo-0"},
 		},
+		{
+			name:            "1 unmodified merged, 1 new changeset",
+			updatePlan:      true,
+			oldCampaignJobs: repoNames{"repo-0"},
+			changesetStates: map[string]campaigns.ChangesetState{"repo-0": campaigns.ChangesetStateMerged},
+			newCampaignJobs: []newCampaignJobSpec{
+				{repo: "repo-1"},
+			},
+			wantUnmodified: repoNames{"repo-0"},
+			wantCreated:    repoNames{"repo-1"},
+		},
+		{
+			name:            "1 unmodified closed, 1 new changeset",
+			updatePlan:      true,
+			oldCampaignJobs: repoNames{"repo-0"},
+			changesetStates: map[string]campaigns.ChangesetState{"repo-0": campaigns.ChangesetStateClosed},
+			newCampaignJobs: []newCampaignJobSpec{
+				{repo: "repo-1"},
+			},
+			wantUnmodified: repoNames{"repo-0"},
+			wantCreated:    repoNames{"repo-1"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -762,7 +784,7 @@ func TestService_UpdateCampaignWithNewCampaignPlanID(t *testing.T) {
 				if len(tt.individuallyPublished) != 0 {
 					wantChangesetJobLen = len(tt.individuallyPublished)
 				} else {
-					wantChangesetJobLen = len(newCampaignJobs)
+					wantChangesetJobLen = len(tt.wantCreated) + len(tt.wantUnmodified) + len(tt.wantModified)
 				}
 			} else {
 				wantChangesetJobLen = len(oldCampaignJobs)

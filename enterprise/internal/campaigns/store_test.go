@@ -1915,10 +1915,11 @@ func testStore(db *sql.DB) func(*testing.T) {
 
 		t.Run("CampaignPlan DeleteExpired", func(t *testing.T) {
 			tests := []struct {
-				hasCampaign bool
-				jobs        []*cmpgn.CampaignJob
-				wantDeleted bool
-				want        *cmpgn.BackgroundProcessStatus
+				hasCampaign                 bool
+				jobsAttachedToOtherCampaign bool
+				jobs                        []*cmpgn.CampaignJob
+				wantDeleted                 bool
+				want                        *cmpgn.BackgroundProcessStatus
 			}{
 				{
 					hasCampaign: false,
@@ -1966,6 +1967,17 @@ func testStore(db *sql.DB) func(*testing.T) {
 					},
 					wantDeleted: true,
 				},
+				{
+					hasCampaign:                 false,
+					jobsAttachedToOtherCampaign: true,
+					jobs: []*cmpgn.CampaignJob{
+						// completed more than 1 hour ago
+						{FinishedAt: now.Add(-61 * time.Minute)},
+						// completed more than 2 hours ago
+						{FinishedAt: now.Add(-121 * time.Minute)},
+					},
+					wantDeleted: false,
+				},
 			}
 
 			for _, tc := range tests {
@@ -1987,8 +1999,6 @@ func testStore(db *sql.DB) func(*testing.T) {
 					}
 				}
 
-				// TODO(campaigns): Create a Campaign with CampaignPlanID = plan.ID
-
 				for i, j := range tc.jobs {
 					j.StartedAt = now.Add(-2 * time.Hour)
 					j.CampaignPlanID = plan.ID
@@ -1999,6 +2009,70 @@ func testStore(db *sql.DB) func(*testing.T) {
 					err := s.CreateCampaignJob(ctx, j)
 					if err != nil {
 						t.Fatal(err)
+					}
+				}
+
+				if tc.hasCampaign {
+					err = s.CreateCampaign(ctx, &cmpgn.Campaign{
+						CampaignPlanID:  plan.ID,
+						Name:            "Test",
+						AuthorID:        4567,
+						NamespaceUserID: 4567,
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				if tc.jobsAttachedToOtherCampaign {
+					otherPlan := &cmpgn.CampaignPlan{CampaignType: "patch", Arguments: `{}`}
+					err = s.CreateCampaignPlan(ctx, otherPlan)
+					if err != nil {
+						t.Fatal(err)
+					}
+					otherCampaign := &cmpgn.Campaign{
+						CampaignPlanID:  otherPlan.ID,
+						AuthorID:        4567,
+						Name:            "Other campaign",
+						NamespaceUserID: 4567,
+					}
+					err = s.CreateCampaign(ctx, otherCampaign)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for i, j := range tc.jobs {
+						changeset := &cmpgn.Changeset{
+							RepoID:              api.RepoID(99 + i),
+							CreatedAt:           now,
+							UpdatedAt:           now,
+							Metadata:            &github.PullRequest{},
+							CampaignIDs:         []int64{otherCampaign.ID},
+							ExternalID:          fmt.Sprintf("foobar-%d", i),
+							ExternalServiceType: "github",
+							ExternalBranch:      "campaigns/test",
+							ExternalUpdatedAt:   now,
+							ExternalState:       cmpgn.ChangesetStateOpen,
+							ExternalReviewState: cmpgn.ChangesetReviewStateApproved,
+							ExternalCheckState:  cmpgn.ChangesetCheckStatePassed,
+						}
+						err = s.CreateChangesets(ctx, changeset)
+						if err != nil {
+							t.Fatal(err)
+						}
+						job := &cmpgn.ChangesetJob{
+							CampaignID:    otherCampaign.ID,
+							CampaignJobID: j.ID,
+							ChangesetID:   changeset.ID,
+						}
+						err = s.CreateChangesetJob(ctx, job)
+						if err != nil {
+							t.Fatal(err)
+						}
+						defer func() {
+							err = s.DeleteChangesetJob(ctx, job.ID)
+							if err != nil {
+								t.Fatal(err)
+							}
+						}()
 					}
 				}
 

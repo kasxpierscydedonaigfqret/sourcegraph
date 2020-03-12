@@ -1666,6 +1666,11 @@ NOT EXISTS (
     OR
     campaign_jobs.finished_at > %s
   )
+  OR EXISTS
+  	(SELECT 1 FROM changeset_jobs
+  	 WHERE changeset_jobs.campaign_job_id = campaign_jobs.id
+  	 AND changeset_jobs.changeset_id IS NOT NULL
+  	)
 );
 `
 
