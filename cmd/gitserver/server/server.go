@@ -988,6 +988,11 @@ var testRepoExists func(ctx context.Context, url string) error
 
 // isCloneable checks to see if the Git remote URL is cloneable.
 func (s *Server) isCloneable(ctx context.Context, url string) error {
+	// Skip isCloneable for custom fetch cmds
+	if customFetchCmd(ctx, url) != nil {
+		return nil
+	}
+
 	args := []string{"ls-remote", url, "HEAD"}
 	ctx, cancel := context.WithTimeout(ctx, shortGitCommandTimeout(args))
 	defer cancel()
@@ -1343,20 +1348,23 @@ func (s *Server) doRepoUpdate2(repo api.RepoName, url string) error {
 	}
 
 	headBranch := "master"
+	var output []byte
 
-	// try to fetch HEAD from origin
-	cmd = exec.CommandContext(ctx, "git", "remote", "show", url)
-	cmd.Dir = path.Join(s.ReposDir, string(repo))
-	output, err := runWithRemoteOpts(ctx, cmd, nil)
-	if err != nil {
-		log15.Error("Failed to fetch remote info", "repo", repo, "error", err, "output", string(output))
-		return errors.Wrap(err, "failed to fetch remote info")
-	}
-	submatches := headBranchPattern.FindSubmatch(output)
-	if len(submatches) == 2 {
-		submatch := string(submatches[1])
-		if submatch != "(unknown)" {
-			headBranch = string(submatch)
+	if configRemoteOpts {
+		// try to fetch HEAD from origin
+		cmd = exec.CommandContext(ctx, "git", "remote", "show", url)
+		cmd.Dir = path.Join(s.ReposDir, string(repo))
+		output, err = runWithRemoteOpts(ctx, cmd, nil)
+		if err != nil {
+			log15.Error("Failed to fetch remote info", "repo", repo, "error", err, "output", string(output))
+			return errors.Wrap(err, "failed to fetch remote info")
+		}
+		submatches := headBranchPattern.FindSubmatch(output)
+		if len(submatches) == 2 {
+			submatch := string(submatches[1])
+			if submatch != "(unknown)" {
+				headBranch = string(submatch)
+			}
 		}
 	}
 
