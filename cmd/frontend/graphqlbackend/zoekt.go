@@ -449,10 +449,55 @@ func queryToZoektFileOnlyQueries(query *search.TextPatternInfo, listOfFilePaths 
 	return zoektQueries, nil
 }
 
+func zoektSingleIndexedRepo(ctx context.Context, z *searchbackend.Zoekt, rev *search.RepositoryRevisions, filter func(*zoekt.Repository) bool) (indexed, unindexed []*search.RepositoryRevisions, err error) {
+	indexed = make([]*search.RepositoryRevisions, 0, 1)
+	unindexed = make([]*search.RepositoryRevisions, 0, 1)
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	set, err := z.ListAll(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(rev.RevSpecs()) >= 2 || len(rev.RevSpecs()) != len(rev.Revs) {
+		// Zoekt only indexes 1 rev per repository, so it will not have the full results for the
+		// query on repositories for which multiple revs are searched.
+		return indexed, append(unindexed, rev), nil
+	}
+
+	repo, ok := set[strings.ToLower(string(rev.Repo.Name))]
+	if !ok || (filter != nil && !filter(repo)) {
+		return indexed, append(unindexed, rev), nil
+	}
+
+	for _, branch := range repo.Branches {
+		if branch.Name == "HEAD" {
+			rev.SetIndexedHEADCommit(api.CommitID(branch.Version))
+			break
+		}
+	}
+
+	if len(rev.Revs) == 1 {
+		revSpecToSearch := rev.Revs[0].RevSpec
+		if revSpecToSearch == "" || revSpecToSearch == "HEAD" || api.CommitID(revSpecToSearch) == rev.IndexedHEADCommit() {
+			return append(indexed, rev), unindexed, nil
+		}
+	}
+
+	return indexed, append(unindexed, rev), nil
+}
+
 // zoektIndexedRepos splits the input repo list into two parts: (1) the
 // repositories `indexed` by Zoekt and (2) the repositories that are
 // `unindexed`.
 func zoektIndexedRepos(ctx context.Context, z *searchbackend.Zoekt, revs []*search.RepositoryRevisions, filter func(*zoekt.Repository) bool) (indexed, unindexed []*search.RepositoryRevisions, err error) {
+
+	if len(revs) == 1 {
+		// Classify indexed versus unindexed for the common case of a single revision
+		return zoektSingleIndexedRepo(ctx, z, revs[0], filter)
+	}
+
 	count := 0
 	for _, r := range revs {
 		if len(r.Revs) > 0 && r.Revs[0].RevSpec == "" {
