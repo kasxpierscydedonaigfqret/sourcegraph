@@ -421,7 +421,7 @@ If you ever need to wipe your local database and Redis, run the following comman
 ./dev/drop-entire-local-database-and-redis.sh
 ```
 
-### Caddy certifiate problems
+### Caddy certificate problems
 
 We use Caddy to setup https for local development. It creates self-signed certificates and uses that to serve the local Sourcegraph instance. If your browser complains about the certificate, check the following:
 
