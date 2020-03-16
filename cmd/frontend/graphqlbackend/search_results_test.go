@@ -1277,11 +1277,11 @@ func Test_ZoektSingleIndexedRepo(t *testing.T) {
 				Branches: []zoekt.RepositoryBranch{
 					{
 						Name:    "HEAD",
-						Version: "df3f4e4",
+						Version: "df3f4e499698e48152b39cd655d8901eaf583fa5",
 					},
 					{
 						Name:    "NOT-HEAD",
-						Version: "8ec9754",
+						Version: "8ec975423738fe7851676083ebf660a062ed1578",
 					},
 				},
 			},
@@ -1309,8 +1309,13 @@ func Test_ZoektSingleIndexedRepo(t *testing.T) {
 			wantUnindexed: []*search.RepositoryRevisions{},
 		},
 		{
-			rev:           repoRev("df3f4e4"),
-			wantIndexed:   []*search.RepositoryRevisions{repoRev("df3f4e4")},
+			rev:           repoRev("df3f4e499698e48152b39cd655d8901eaf583fa5"),
+			wantIndexed:   []*search.RepositoryRevisions{repoRev("df3f4e499698e48152b39cd655d8901eaf583fa5")},
+			wantUnindexed: []*search.RepositoryRevisions{},
+		},
+		{
+			rev:           repoRev("df3f4e"),
+			wantIndexed:   []*search.RepositoryRevisions{repoRev("df3f4e")},
 			wantUnindexed: []*search.RepositoryRevisions{},
 		},
 		{
@@ -1319,9 +1324,9 @@ func Test_ZoektSingleIndexedRepo(t *testing.T) {
 			wantUnindexed: []*search.RepositoryRevisions{repoRev("HEAD^1")},
 		},
 		{
-			rev:           repoRev("8ec9754"),
+			rev:           repoRev("8ec975423738fe7851676083ebf660a062ed1578"),
 			wantIndexed:   []*search.RepositoryRevisions{},
-			wantUnindexed: []*search.RepositoryRevisions{repoRev("8ec9754")},
+			wantUnindexed: []*search.RepositoryRevisions{repoRev("8ec975423738fe7851676083ebf660a062ed1578")},
 		},
 	}
 

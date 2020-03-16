@@ -480,7 +480,7 @@ func zoektSingleIndexedRepo(ctx context.Context, z *searchbackend.Zoekt, rev *se
 
 	if len(rev.Revs) == 1 {
 		revSpecToSearch := rev.Revs[0].RevSpec
-		if revSpecToSearch == "" || revSpecToSearch == "HEAD" || api.CommitID(revSpecToSearch) == rev.IndexedHEADCommit() {
+		if revSpecToSearch == "" || revSpecToSearch == "HEAD" || strings.HasPrefix(string(rev.IndexedHEADCommit()), revSpecToSearch) {
 			return append(indexed, rev), unindexed, nil
 		}
 	}
