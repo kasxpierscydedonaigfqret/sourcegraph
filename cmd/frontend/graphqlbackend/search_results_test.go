@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/zoekt"
 	zoektrpc "github.com/google/zoekt/rpc"
 	"github.com/keegancsmith/sqlf"
@@ -1257,6 +1258,52 @@ func Test_commitAndDiffSearchLimits(t *testing.T) {
 			}
 			t.Fatalf("test %s, have result type: %q, want result type: %q", test.name, haveResultType, wantResultType)
 		}
+	}
+}
+
+func Test_ZoektSingleIndexedRepo(t *testing.T) {
+	repoAtHEAD := &search.RepositoryRevisions{
+		Repo: &types.Repo{ID: api.RepoID(0), Name: "test/repo"},
+		Revs: []search.RevisionSpecifier{
+			{RevSpec: "HEAD"},
+		},
+	}
+	zoektRepos := []*zoekt.RepoListEntry{
+		{
+			Repository: zoekt.Repository{
+				Name: "test/repo",
+			},
+		},
+	}
+	z := &searchbackend.Zoekt{
+		Client: &fakeSearcher{
+			repos: &zoekt.RepoList{Repos: zoektRepos},
+		},
+		DisableCache: true,
+	}
+	cases := []struct {
+		rev           *search.RepositoryRevisions
+		wantIndexed   []*search.RepositoryRevisions
+		wantUnindexed []*search.RepositoryRevisions
+	}{
+		{
+			rev:           repoAtHEAD,
+			wantIndexed:   []*search.RepositoryRevisions{repoAtHEAD},
+			wantUnindexed: []*search.RepositoryRevisions{},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run("classify indexed repo by commit", func(t *testing.T) {
+			filter := func(*zoekt.Repository) bool { return true }
+			indexed, unindexed, _ := zoektSingleIndexedRepo(context.Background(), z, tt.rev, filter)
+			if cmp.Diff(indexed, tt.wantIndexed) != "" {
+				t.Errorf("Got indexed repo %v, want %v", indexed, tt.wantIndexed)
+			}
+			if cmp.Diff(unindexed, tt.wantUnindexed) != "" {
+				t.Errorf("Got unindexed repo %v, want %v", unindexed, tt.wantUnindexed)
+			}
+		})
 	}
 }
 
