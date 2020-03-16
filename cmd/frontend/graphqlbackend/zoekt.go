@@ -450,8 +450,8 @@ func queryToZoektFileOnlyQueries(query *search.TextPatternInfo, listOfFilePaths 
 }
 
 func zoektSingleIndexedRepo(ctx context.Context, z *searchbackend.Zoekt, rev *search.RepositoryRevisions, filter func(*zoekt.Repository) bool) (indexed, unindexed []*search.RepositoryRevisions, err error) {
-	indexed = make([]*search.RepositoryRevisions, 0, 1)
-	unindexed = make([]*search.RepositoryRevisions, 0, 1)
+	indexed = []*search.RepositoryRevisions{}
+	unindexed = []*search.RepositoryRevisions{}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
