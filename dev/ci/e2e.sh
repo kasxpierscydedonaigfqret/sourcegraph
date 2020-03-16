@@ -8,7 +8,7 @@ if [ -z "$IMAGE" ]; then
     exit 1
 fi
 
-URL="http://localhost:7080"
+URL="https://localhost"
 
 if curl --output /dev/null --silent --head --fail $URL; then
     echo "❌ Can't run a new Sourcegraph instance on $URL because another instance is already running."
@@ -34,6 +34,9 @@ docker exec "$CONTAINER" apk add --no-cache socat
 # can hit it. This is similar to port-forwarding via SSH tunneling, but uses
 # docker exec as the transport.
 socat tcp-listen:7080,reuseaddr,fork system:"docker exec -i $CONTAINER socat stdio 'tcp:localhost:7080'" &
+
+# Provide a HTTPS reverse-proxy
+caddy reverse-proxy --to localhost:7080
 
 set +e
 timeout 60s bash -c "until curl --output /dev/null --silent --head --fail $URL; do
