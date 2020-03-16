@@ -47,9 +47,10 @@ type AuthzStore interface {
 	// GrantPendingPermissions grants pending permissions for a user. It is a no-op in the OSS version.
 	GrantPendingPermissions(ctx context.Context, args *GrantPendingPermissionsArgs) error
 	// AuthorizedRepos checks if a user is authorized to access repositories in the candidate list.
-	// The returned list must be a list of repositories that are authorized to the given user.
+	// The returned list must be a list of repositories that are authorized to the given user. The
+	// second return value indicates whether the result is complete.
 	// It is a no-op in the OSS version.
-	AuthorizedRepos(ctx context.Context, args *AuthorizedReposArgs) ([]*types.Repo, error)
+	AuthorizedRepos(ctx context.Context, args *AuthorizedReposArgs) ([]*types.Repo, bool, error)
 	// RevokeUserPermissions deletes both effective and pending permissions that could be related to a user.
 	// It is a no-op in the OSS version.
 	RevokeUserPermissions(ctx context.Context, args *RevokeUserPermissionsArgs) error

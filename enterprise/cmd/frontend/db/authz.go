@@ -111,11 +111,18 @@ func (s *authzStore) GrantPendingPermissions(ctx context.Context, args *db.Grant
 }
 
 // AuthorizedRepos checks if a user is authorized to access repositories in the candidate list,
-// which implements the db.AuthzStore interface.
-func (s *authzStore) AuthorizedRepos(ctx context.Context, args *db.AuthorizedReposArgs) ([]*types.Repo, error) {
+// which implements the db.AuthzStore interface. The second return value indicates whether the
+// result is complete.
+func (s *authzStore) AuthorizedRepos(ctx context.Context, args *db.AuthorizedReposArgs) ([]*types.Repo, bool, error) {
 	if len(args.Repos) == 0 {
-		return args.Repos, nil
+		return args.Repos, true, nil
 	}
+
+	ids, err := s.store.RepoIDsWithNoPerms(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	complete := len(ids) == 0
 
 	p := &authz.UserPermissions{
 		UserID: args.UserID,
@@ -124,9 +131,9 @@ func (s *authzStore) AuthorizedRepos(ctx context.Context, args *db.AuthorizedRep
 	}
 	if err := s.store.LoadUserPermissions(ctx, p); err != nil {
 		if err == authz.ErrPermsNotFound {
-			return []*types.Repo{}, nil
+			return []*types.Repo{}, complete, nil
 		}
-		return nil, err
+		return nil, complete, err
 	}
 
 	perms := p.AuthorizedRepos(args.Repos)
@@ -134,7 +141,7 @@ func (s *authzStore) AuthorizedRepos(ctx context.Context, args *db.AuthorizedRep
 	for i, r := range perms {
 		filtered[i] = r.Repo
 	}
-	return filtered, nil
+	return filtered, complete, nil
 }
 
 // RevokeUserPermissions deletes both effective and pending permissions that could be related to a user,
