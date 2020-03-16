@@ -492,7 +492,6 @@ func zoektSingleIndexedRepo(ctx context.Context, z *searchbackend.Zoekt, rev *se
 // repositories `indexed` by Zoekt and (2) the repositories that are
 // `unindexed`.
 func zoektIndexedRepos(ctx context.Context, z *searchbackend.Zoekt, revs []*search.RepositoryRevisions, filter func(*zoekt.Repository) bool) (indexed, unindexed []*search.RepositoryRevisions, err error) {
-
 	if len(revs) == 1 {
 		// Classify indexed versus unindexed for the common case of a single revision
 		return zoektSingleIndexedRepo(ctx, z, revs[0], filter)
