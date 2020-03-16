@@ -1262,16 +1262,28 @@ func Test_commitAndDiffSearchLimits(t *testing.T) {
 }
 
 func Test_ZoektSingleIndexedRepo(t *testing.T) {
-	repoAtHEAD := &search.RepositoryRevisions{
-		Repo: &types.Repo{ID: api.RepoID(0), Name: "test/repo"},
-		Revs: []search.RevisionSpecifier{
-			{RevSpec: "HEAD"},
-		},
+	repoRev := func(revSpec string) *search.RepositoryRevisions {
+		return &search.RepositoryRevisions{
+			Repo: &types.Repo{ID: api.RepoID(0), Name: "test/repo"},
+			Revs: []search.RevisionSpecifier{
+				{RevSpec: revSpec},
+			},
+		}
 	}
 	zoektRepos := []*zoekt.RepoListEntry{
 		{
 			Repository: zoekt.Repository{
 				Name: "test/repo",
+				Branches: []zoekt.RepositoryBranch{
+					{
+						Name:    "HEAD",
+						Version: "df3f4e4",
+					},
+					{
+						Name:    "NOT-HEAD",
+						Version: "8ec9754",
+					},
+				},
 			},
 		},
 	}
@@ -1287,9 +1299,29 @@ func Test_ZoektSingleIndexedRepo(t *testing.T) {
 		wantUnindexed []*search.RepositoryRevisions
 	}{
 		{
-			rev:           repoAtHEAD,
-			wantIndexed:   []*search.RepositoryRevisions{repoAtHEAD},
+			rev:           repoRev(""),
+			wantIndexed:   []*search.RepositoryRevisions{repoRev("")},
 			wantUnindexed: []*search.RepositoryRevisions{},
+		},
+		{
+			rev:           repoRev("HEAD"),
+			wantIndexed:   []*search.RepositoryRevisions{repoRev("HEAD")},
+			wantUnindexed: []*search.RepositoryRevisions{},
+		},
+		{
+			rev:           repoRev("df3f4e4"),
+			wantIndexed:   []*search.RepositoryRevisions{repoRev("df3f4e4")},
+			wantUnindexed: []*search.RepositoryRevisions{},
+		},
+		{
+			rev:           repoRev("HEAD^1"),
+			wantIndexed:   []*search.RepositoryRevisions{},
+			wantUnindexed: []*search.RepositoryRevisions{repoRev("HEAD^1")},
+		},
+		{
+			rev:           repoRev("8ec9754"),
+			wantIndexed:   []*search.RepositoryRevisions{},
+			wantUnindexed: []*search.RepositoryRevisions{repoRev("8ec9754")},
 		},
 	}
 
