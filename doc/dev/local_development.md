@@ -4,18 +4,41 @@ Have a look around, our code is on [GitHub](https://sourcegraph.com/github.com/s
 
 ## Outline
 
-- [Environment](#environment)
-- [Step 1: Install dependencies](#step-1-install-dependencies)
-- [Step 2: Initialize your database](#step-2-initialize-your-database)
-- [Step 3: (macOS) Start Docker](#step-3-macos-start-docker)
-- [Step 4: Get the code](#step-4-get-the-code)
-- [Step 5: Start the Server](#step-5-start-the-server)
-- [Troubleshooting](#troubleshooting)
-- [How to Run Tests](#how-to-run-tests)
-- [CPU/RAM/bandwidth/battery usage](#cpurambandwidthbattery-usage)
-- [How to debug live code](#how-to-debug-live-code)
-- [Windows support](#windows-support)
-- [Other nice things](#other-nice-things)
+- [Getting started with developing Sourcegraph](#getting-started-with-developing-sourcegraph)
+  - [Outline](#outline)
+  - [Environment](#environment)
+  - [Step 1: Install dependencies](#step-1-install-dependencies)
+    - [macOS](#macos)
+    - [Ubuntu](#ubuntu)
+  - [Step 2: Initialize your database](#step-2-initialize-your-database)
+    - [More info](#more-info)
+    - [(optional) asdf](#optional-asdf)
+    - [Install](#install)
+      - [asdf binary](#asdf-binary)
+      - [Plugins](#plugins)
+    - [Usage instructions](#usage-instructions)
+  - [Step 3: (macOS) Start Docker](#step-3-macos-start-docker)
+      - [Option A: Docker for Mac](#option-a-docker-for-mac)
+      - [Option B: docker-machine](#option-b-docker-machine)
+  - [Step 4: Get the code](#step-4-get-the-code)
+  - [Step 5: Start the Server](#step-5-start-the-server)
+  - [Troubleshooting](#troubleshooting)
+      - [Problems with node_modules or Javascript packages](#problems-with-nodemodules-or-javascript-packages)
+      - [dial tcp 127.0.0.1:3090: connect: connection refused](#dial-tcp-1270013090-connect-connection-refused)
+      - [Database migration failures](#database-migration-failures)
+      - [Internal Server Error](#internal-server-error)
+      - [Increase maximum available file descriptors.](#increase-maximum-available-file-descriptors)
+    - [Caddy certifiate problems](#caddy-certifiate-problems)
+  - [How to Run Tests](#how-to-run-tests)
+  - [CPU/RAM/bandwidth/battery usage](#cpurambandwidthbattery-usage)
+  - [How to debug live code](#how-to-debug-live-code)
+    - [Debug TypeScript code](#debug-typescript-code)
+    - [Debug Go code](#debug-go-code)
+  - [Go dependency management](#go-dependency-management)
+  - [Codegen](#codegen)
+  - [Windows support](#windows-support)
+  - [Other nice things](#other-nice-things)
+    - [Offline development](#offline-development)
 
 ## Environment
 
@@ -38,6 +61,7 @@ Sourcegraph has the following dependencies:
 - [SQLite](https://www.sqlite.org/index.html) tools
 - [Golang Migrate](https://github.com/golang-migrate/migrate/) (v4.7.0 or higher)
 - [Comby](https://github.com/comby-tools/comby/) (v0.11.3 or higher)
+- [Caddy](https://github.com/caddyserver/caddy/) (v2.0.0-beta.17 or higher - see current recommended version in [.tool-versions](https://github.com/sourcegraph/sourcegraph/blob/master/.tool-versions))
 
 The following are two recommendations for installing these dependencies:
 
@@ -229,6 +253,59 @@ page](postgresql.md).
 
 Migrations are applied automatically.
 
+### (optional) asdf
+
+[asdf](https://github.com/asdf-vm/asdf) is a CLI tool that manages runtime versions for a number of different languages and tools. It can be likened to a language-agnostic version of [nvm](https://github.com/nvm-sh/nvm) or [pyenv](https://github.com/pyenv/pyenv).
+
+We use asdf in buildkite to lock the versions of the tools that we use on a per-commit basis.
+
+### Install
+
+#### asdf binary
+
+See the [installation instructions on the official asdf documentation](https://asdf-vm.com/#/core-manage-asdf-vm?id=install-asdf-vm).
+
+#### Plugins
+
+sourcegraph/sourcegraph uses the following plugins:
+
+- [Go](https://github.com/kennyp/asdf-golang)
+
+```bash
+asdf plugin add golang
+```
+
+- [NodeJS](https://github.com/asdf-vm/asdf-nodejs)
+
+```bash
+asdf plugin add nodejs
+
+# Import the Node.js release team's OpenPGP keys to main keyring
+bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring
+
+# Have asdf read .nvmrc for auto-switching between node version
+## Add the following to $HOME/.asdfrc:
+legacy_version_file = yes
+```
+
+- [Yarn](https://github.com/twuni/asdf-yarn)
+
+```bash
+asdf plugin add yarn
+```
+
+- [Caddy](https://github.com/salasrod/asdf-caddy)
+
+```bash
+asdf plugin add caddy
+```
+
+### Usage instructions
+
+[asdf](https://github.com/asdf-vm/asdf) uses versions specified in [.tool-versions](https://github.com/sourcegraph/sourcegraph/blob/master/.tool-versions) whenever a command is run from one of `sourcegraph/sourcegraph`'s subdirectories.
+
+You can install the all the versions specified in [.tool-versions](https://github.com/sourcegraph/sourcegraph/blob/master/.tool-versions) by running `asdf install`.
+
 ## Step 3: (macOS) Start Docker
 
 #### Option A: Docker for Mac
@@ -343,6 +420,14 @@ If you ever need to wipe your local database and Redis, run the following comman
 ```bash
 ./dev/drop-entire-local-database-and-redis.sh
 ```
+
+### Caddy certifiate problems
+
+We use Caddy to setup https for local development. It creates self-signed certificates and uses that to serve the local Sourcegraph instance. If your browser complains about the certificate, check the following:
+
+1. The first time that Caddy reverse-proxies your Sourcegraph instance, it needs to add its certificate authority to your local certificate store. This may require elevated permissions on your machine. If you haven't done so already, try running `caddy reverse-proxy --to localhost:3080` and enter your password if prompted. You may also need to run that command as the `root` user.
+
+1. If you have completed the previous step and your browser still complains about the certificate, try restarting your browser or your local machine.
 
 ## How to Run Tests
 
